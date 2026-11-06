@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**AHPRA CV Portal** - A web application for medical practitioners (doctors, nurses, allied health professionals) to create, manage, and export CVs in the AHPRA (Australian Health Practitioner Regulation Agency) standard format for registration applications in Australia.
+**Medifolio** - A web application for medical practitioners (doctors, nurses, allied health professionals) to create, manage, and export professional CVs tailored for healthcare registration applications.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | **Frontend** | Next.js 14+ (App Router) |
-| **Backend/Database** | Convex |
-| **Authentication** | Convex Auth (Email + Google OAuth) |
+| **Backend/Database** | Supabase (PostgreSQL) |
+| **Authentication** | Supabase Auth (Email + Google OAuth) |
 | **Styling** | Tailwind CSS + shadcn/ui |
 | **PDF Generation** | react-pdf or @react-pdf/renderer |
 | **Form Handling** | React Hook Form + Zod validation |
@@ -21,30 +21,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ```bash
-# Initial setup (when project is created)
-npx create-next-app@latest ahpra-cv-portal --typescript --tailwind --app
-cd ahpra-cv-portal
-
 # Install dependencies
-npm install convex @convex-dev/auth
-npm install @react-pdf/renderer react-hook-form @hookform/resolvers zod
-npm install react-signature-canvas lucide-react
-
-# Initialize Convex
-npx convex init
+npm install
 
 # Install shadcn/ui components
 npx shadcn@latest init
 npx shadcn@latest add button input card form label tabs progress
 
-# Development (run in parallel)
+# Development
 npm run dev          # Start Next.js dev server
-npx convex dev       # Start Convex backend
 
 # Build and deployment
 npm run build        # Build for production
 npm run start        # Start production server
-npx convex deploy    # Deploy Convex backend
+
+# Supabase CLI (optional, for local development)
+npx supabase init
+npx supabase start   # Start local Supabase instance
+npx supabase db push # Push migrations to database
 ```
 
 ## Project Structure
@@ -61,22 +55,26 @@ npx convex deploy    # Deploy Convex backend
 │   ├── cv/                # CV form components
 │   ├── pdf/               # PDF generation components
 │   └── ui/                # shadcn/ui components
-├── convex/                # Convex backend
-│   ├── schema.ts          # Database schema
-│   ├── auth.ts            # Authentication logic
-│   └── [tables].ts        # Table operations
 ├── lib/
+│   ├── supabase/          # Supabase client configuration
+│   │   ├── client.ts      # Browser client
+│   │   ├── server.ts      # Server client
+│   │   ├── middleware.ts  # Auth middleware helper
+│   │   └── database.types.ts # TypeScript types for database
 │   ├── validations/       # Zod schemas
 │   └── utils.ts
+├── supabase/
+│   └── schema.sql         # Database schema (always keep updated)
+├── middleware.ts          # Next.js middleware for auth
 └── types/
     └── cv.ts              # TypeScript types
 ```
 
-## Core AHPRA CV Sections
+## Core CV Sections
 
-The application implements these mandatory AHPRA CV sections:
+The application implements these CV sections for medical professionals:
 
-1. **Personal Details** - Name, contact, AHPRA number
+1. **Personal Details** - Name, contact, registration number
 2. **Qualifications** - Medical degrees and certifications
 3. **Bridging Programs** - Qualifying exams and programs
 4. **Clinical Skills** - Skills with competency levels
@@ -88,77 +86,87 @@ The application implements these mandatory AHPRA CV sections:
 10. **Referees** - Professional references
 11. **Declaration** - Legal statement with digital signature
 
-## Database Architecture (Convex)
+## Database Architecture (Supabase)
 
-- **users** - User authentication data
-- **cvProfiles** - Multiple CV profiles per user
-- **personalDetails** - Section 1 data
+All tables use snake_case naming convention:
+
+- **users** - User profile data (extends auth.users)
+- **cv_profiles** - Multiple CV profiles per user
+- **personal_details** - Section 1 data
 - **qualifications** - Section 2 data
-- **bridgingPrograms** - Section 3 data
-- **clinicalSkills** - Section 4 data
-- **workHistory** - Section 5 data
+- **bridging_programs** - Section 3 data
+- **clinical_skills** - Section 4 data
+- **work_history** - Section 5 data
 - **internships** - Section 6 data
-- **practiceGaps** - Section 7 data
-- **cpdActivities** - Section 8 data
+- **practice_gaps** - Section 7 data
+- **cpd_activities** - Section 8 data
 - **publications** - Section 9 data
 - **referees** - Section 10 data
 - **declarations** - Section 11 data
 
 ## Authentication
 
-- **Convex Auth** with Google OAuth and Email magic links
-- Session-based authentication
-- Row-level security enforced by Convex
-- User profiles linked to CV data
+- **Supabase Auth** with Google OAuth and Email magic links
+- JWT-based authentication with automatic refresh
+- Row-level security (RLS) policies on all tables
+- User profiles automatically created via database trigger
+- Protected routes handled by Next.js middleware
 
 ## Key Features
 
 - **Multi-profile Support** - Users can create multiple CV variations
-- **Auto-save** - Real-time sync via Convex
+- **Auto-save** - Real-time sync via Supabase
 - **Progress Tracking** - Visual completion indicators
-- **PDF Export** - AHPRA-compliant formatting
+- **PDF Export** - Professional formatting for medical CVs
 - **Digital Signature** - Canvas-based signature capture
 - **Gap Detection** - Automatic flagging of employment gaps
-- **Compliance Validation** - Ensure AHPRA requirements are met
+- **Validation** - Ensure all required information is complete
 
-## AHPRA Compliance Requirements
+## CV Best Practices
 
 - CV must include signed declaration: "The curriculum vitae is true and correct as at [DATE]"
 - Work history in reverse chronological order
-- All gaps over 3 months must be explained
+- All gaps over 3 months should be explained
 - Referee contact details must be current
-- No unauthorized use of AHPRA/National Board logos
 - Users reminded to attach certified copies of certificates
 
 ## Environment Variables
 
 ```env
-# Convex
-CONVEX_DEPLOYMENT=your-deployment
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-
-# Authentication
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-RESEND_API_KEY=your-resend-api-key
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+## Supabase Client Usage
+
+```typescript
+// In Client Components
+import { createClient } from "@/lib/supabase/client";
+const supabase = createClient();
+
+// In Server Components / Route Handlers / Server Actions
+import { createClient } from "@/lib/supabase/server";
+const supabase = await createClient();
+```
+
 ## Development Notes
 
 - Use React Hook Form with Zod validation for all forms
-- Implement auto-save functionality using Convex mutations
+- Implement auto-save functionality using Supabase upserts
 - Follow shadcn/ui design patterns for consistent UI
-- Ensure PDF output matches AHPRA formatting guidelines
+- Ensure PDF output is professionally formatted
 - Test signature capture across different devices
-- Validate all form inputs against AHPRA requirements
+- Validate all form inputs for completeness
+- Generate TypeScript types from database: `npx supabase gen types typescript`
 
 ## Testing
 
 - Unit tests for validation schemas
-- Integration tests for Convex mutations
+- Integration tests for Supabase queries
 - E2E tests for complete CV creation workflow
 - PDF generation testing across browsers
 - Mobile responsiveness testing
@@ -166,6 +174,25 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ## Deployment
 
 - **Frontend**: Vercel (automatic deployment from main branch)
-- **Backend**: Convex cloud (deployed via `npx convex deploy`)
+- **Backend**: Supabase cloud (managed PostgreSQL)
 - **Domain**: Configure custom domain in Vercel dashboard
-- **SSL**: Automatically handled by Vercel
+- **SSL**: Automatically handled by Vercel and Supabase
+
+## Database Schema Management
+
+**IMPORTANT**: The database schema is defined in `supabase/schema.sql`. This file is the source of truth for the database structure.
+
+- When making database changes, **always update `supabase/schema.sql`** first
+- After updating the schema file, run the SQL in the Supabase SQL Editor to apply changes
+- Keep `lib/supabase/database.types.ts` in sync with schema changes
+- The schema includes:
+  - All table definitions with constraints
+  - Row Level Security (RLS) policies
+  - Database functions and triggers
+  - Indexes for performance
+
+To apply schema changes:
+1. Update `supabase/schema.sql`
+2. Go to Supabase Dashboard → SQL Editor
+3. Run the relevant SQL statements
+4. Update `database.types.ts` if types changed
